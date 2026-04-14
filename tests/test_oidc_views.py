@@ -1239,3 +1239,4 @@ class TestOAuthServerMetadataView(TestCase):
         assert "issuer" in data
         assert "authorization_endpoint" in data
         assert "token_endpoint" in data
+        assert "jwks_uri" not in data
