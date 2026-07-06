@@ -208,19 +208,25 @@ def _dot_grant_to_rfc_grant_types(dot_grant):
     return result
 
 
+@method_decorator(csrf_exempt, name="dispatch")
 @method_decorator(login_not_required, name="dispatch")
 class DynamicClientRegistrationView(View):
     """
     RFC 7591 — Dynamic Client Registration endpoint.
 
     POST /register/
+
+    The view is ``csrf_exempt`` because DCR is an API endpoint typically called
+    with no cookies at all (anonymous or ``Authorization``-header credentials).
+    CSRF protection for session-cookie-authenticated requests is enforced by
+    ``IsAuthenticatedDCRPermission`` in the permission layer instead; custom
+    permission classes that rely on Django's session authentication should do
+    the same (see ``oauth2_provider.dcr.enforce_csrf``).
     """
 
     def dispatch(self, request, *args, **kwargs):
         if not oauth2_settings.DCR_ENABLED:
             return JsonResponse({"error": "not_found"}, status=404)
-        if not request.user.is_authenticated or request.META.get("HTTP_AUTHORIZATION"):
-            request._dont_enforce_csrf_checks = True
         return super().dispatch(request, *args, **kwargs)
 
     def post(self, request, *args, **kwargs):

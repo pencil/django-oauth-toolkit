@@ -234,6 +234,61 @@ class TestOpenRegistration(TestCase):
 
 
 # ---------------------------------------------------------------------------
+# CSRF enforcement (with enforce_csrf_checks=True, unlike the default test
+# client which bypasses CSRF validation entirely)
+# ---------------------------------------------------------------------------
+
+
+CSRF_SECRET = "0123456789abcdef0123456789abcdef"
+
+
+@pytest.mark.usefixtures("oauth2_settings")
+@pytest.mark.oauth2_settings(presets.DCR_SETTINGS)
+class TestDCRCsrfSessionAuthenticated(TestCase):
+    """Session-cookie-authenticated registration requires a valid CSRF token."""
+
+    def setUp(self):
+        self.user = UserModel.objects.create_user("csrf_user", "csrf@example.com", "pass")
+        self.csrf_client = self.client_class(enforce_csrf_checks=True)
+        self.csrf_client.force_login(self.user)
+        self.data = {
+            "redirect_uris": ["https://example.com/cb"],
+            "grant_types": ["authorization_code"],
+        }
+
+    def test_session_auth_without_csrf_token_is_rejected(self):
+        """Session-authenticated POST without a CSRF token → 401."""
+        response = _post_register(self.csrf_client, self.data)
+        assert response.status_code == 401
+        assert response.json()["error"] == "access_denied"
+
+    def test_session_auth_with_csrf_token_succeeds(self):
+        """Session-authenticated POST with a valid CSRF token → 201."""
+        self.csrf_client.cookies["csrftoken"] = CSRF_SECRET
+        response = _post_register(self.csrf_client, self.data, HTTP_X_CSRFTOKEN=CSRF_SECRET)
+        assert response.status_code == 201
+        assert "client_id" in response.json()
+
+
+@pytest.mark.usefixtures("oauth2_settings")
+@pytest.mark.oauth2_settings(
+    {
+        **presets.DCR_SETTINGS,
+        "DCR_REGISTRATION_PERMISSION_CLASSES": ("oauth2_provider.dcr.AllowAllDCRPermission",),
+    }
+)
+class TestDCRCsrfOpenRegistration(TestCase):
+    """Open (anonymous) registration works without any CSRF token."""
+
+    def test_anonymous_registration_without_csrf_token_succeeds(self):
+        csrf_client = self.client_class(enforce_csrf_checks=True)
+        data = {"redirect_uris": ["https://example.com/cb"], "grant_types": ["authorization_code"]}
+        response = _post_register(csrf_client, data)
+        assert response.status_code == 201
+        assert "client_id" in response.json()
+
+
+# ---------------------------------------------------------------------------
 # RFC 7592 — Management endpoint tests
 # ---------------------------------------------------------------------------
 

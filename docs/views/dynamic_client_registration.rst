@@ -99,6 +99,16 @@ sensible defaults.
     * ``oauth2_provider.dcr.IsAuthenticatedDCRPermission`` — requires Django session authentication.
     * ``oauth2_provider.dcr.AllowAllDCRPermission`` — open registration; no authentication required.
 
+    .. note::
+        The registration view itself is ``csrf_exempt`` so that anonymous and
+        ``Authorization``-header clients can POST to it. CSRF protection for
+        session-cookie-authenticated requests is enforced by
+        ``IsAuthenticatedDCRPermission`` instead: such requests must include a
+        valid CSRF token or they are rejected. If you write a custom permission
+        class that accepts Django session authentication, call
+        ``oauth2_provider.dcr.enforce_csrf(request)`` for cookie-authenticated
+        requests to keep the endpoint CSRF-protected.
+
 ``DCR_REGISTRATION_SCOPE``
     The scope string stored on the registration ``AccessToken`` used to protect the RFC 7592
     management endpoints.
