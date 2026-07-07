@@ -207,6 +207,38 @@ class TestDynamicClientRegistration(TestCase):
         assert response.status_code == 400
         assert response.json()["error"] == "invalid_client_metadata"
 
+    def test_register_empty_grant_types_is_400(self):
+        """grant_types=[] → 400."""
+        self.client.force_login(self.user)
+        data = {"redirect_uris": ["https://example.com/cb"], "grant_types": []}
+        response = _post_register(self.client, data)
+        assert response.status_code == 400
+        assert response.json()["error"] == "invalid_client_metadata"
+
+    def test_register_grant_types_not_array_is_400(self):
+        """grant_types as a string instead of an array → 400."""
+        self.client.force_login(self.user)
+        data = {"redirect_uris": ["https://example.com/cb"], "grant_types": "authorization_code"}
+        response = _post_register(self.client, data)
+        assert response.status_code == 400
+        assert response.json()["error"] == "invalid_client_metadata"
+
+    def test_register_non_string_grant_type_is_400(self):
+        """A non-string grant_types element → 400."""
+        self.client.force_login(self.user)
+        data = {"redirect_uris": ["https://example.com/cb"], "grant_types": [123]}
+        response = _post_register(self.client, data)
+        assert response.status_code == 400
+        assert response.json()["error"] == "invalid_client_metadata"
+
+    def test_validation_error_description_without_message_dict(self):
+        """Non-field ValidationErrors serialize via their messages list."""
+        from django.core.exceptions import ValidationError
+
+        from oauth2_provider.views.dynamic_client_registration import _validation_error_description
+
+        assert _validation_error_description(ValidationError("plain message")) == "plain message"
+
 
 # ---------------------------------------------------------------------------
 # Open registration (AllowAllDCRPermission)
@@ -419,7 +451,28 @@ class TestDynamicClientRegistrationManagement(TestCase):
         body = response.json()
         assert body["registration_access_token"] == self.registration_token
 
+    def test_put_invalid_metadata_is_400(self):
+        """PUT with an invalid redirect_uri → 400 with validation message."""
+        update_data = {
+            "redirect_uris": ["not-a-valid-uri!"],
+            "grant_types": ["authorization_code"],
+        }
+        response = self.client.put(
+            self.management_url,
+            data=json.dumps(update_data),
+            content_type="application/json",
+            **_bearer(self.registration_token),
+        )
+        assert response.status_code == 400
+        assert response.json()["error"] == "invalid_client_metadata"
+
     # -- DELETE --------------------------------------------------------------
+
+    def test_delete_without_token_is_401(self):
+        """DELETE without a registration token → 401, application kept."""
+        response = self.client.delete(self.management_url)
+        assert response.status_code == 401
+        assert Application.objects.filter(client_id=self.client_id).exists()
 
     def test_delete_removes_application(self):
         """DELETE → 204, application deleted."""
