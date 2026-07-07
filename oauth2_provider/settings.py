@@ -335,16 +335,15 @@ class OAuth2ProviderSettings:
 
     def oauth2_metadata_issuer(self, request):
         """
-        Helper function to get the OAuth2 server metadata issuer URL, either from
-        the OIDC_ISS_ENDPOINT setting or constructing it from the passed request.
+        Get the OAuth2 authorization server metadata issuer URL.
 
-        Per RFC 8414 / RFC 8615 the metadata endpoint is served at
-        ``{issuer}/.well-known/oauth-authorization-server``, so the issuer is
-        derived by stripping the ``/.well-known/...`` suffix from the request URL.
-        This preserves any mount prefix (e.g. ``/o``) and keeps the issuer
-        consistent with the endpoint URLs, without depending on URL routing
-        internals (which fail when the view is mounted outside the
-        ``oauth2_provider`` namespace).
+        If ``OIDC_ISS_ENDPOINT`` is configured it is returned verbatim.
+        Otherwise the issuer is derived from the incoming request. RFC 8414
+        locates the metadata document at an RFC 8615 ``.well-known`` URI, so the
+        issuer is the metadata request URL with the ``/.well-known/...`` suffix
+        removed. Deriving it from the request path (rather than reversing a URL
+        name) preserves any mount prefix (e.g. ``/o``) and keeps working when the
+        view is mounted outside the ``oauth2_provider`` namespace.
         """
         if self.OIDC_ISS_ENDPOINT:
             return self.OIDC_ISS_ENDPOINT

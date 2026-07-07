@@ -20,13 +20,23 @@ the root separately:
 
 .. code-block:: python
 
-    from oauth2_provider.urls import metadata_urlpatterns, base_urlpatterns
+    from oauth2_provider.urls import (
+        base_urlpatterns,
+        management_urlpatterns,
+        metadata_urlpatterns,
+        oidc_urlpatterns,
+    )
 
     urlpatterns = [
         # Metadata at root (RFC 8414 requirement)
-        path("", include(metadata_urlpatterns)),
-        # Other toolkit endpoints at a prefix
-        path("o/", include((base_urlpatterns, "oauth2_provider"))),
+        path("", include((metadata_urlpatterns, "oauth2_provider"))),
+        # The rest of the toolkit under your chosen prefix
+        path(
+            "o/",
+            include(
+                (base_urlpatterns + management_urlpatterns + oidc_urlpatterns, "oauth2_provider")
+            ),
+        ),
     ]
 
 If you use ``include("oauth2_provider.urls")`` without a prefix, everything works

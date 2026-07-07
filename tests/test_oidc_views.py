@@ -1245,6 +1245,24 @@ class TestOAuthServerMetadataView(TestCase):
         assert "token_endpoint" in data
         assert "jwks_uri" not in data
 
+    @override_settings(ROOT_URLCONF="tests.urls_split_metadata")
+    def test_get_oauth_server_metadata_root_mounted_with_prefixed_endpoints(self):
+        """Documented deployment: metadata at the root, endpoints under /o/.
+
+        The issuer is derived from the root-mounted metadata URL while the
+        endpoint URLs keep their /o/ prefix from ``reverse()``.
+        """
+        self.oauth2_settings.OIDC_ISS_ENDPOINT = None
+        response = self.client.get("/.well-known/oauth-authorization-server")
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        assert data["issuer"] == "http://testserver"
+        assert data["authorization_endpoint"] == "http://testserver/o/authorize/"
+        assert data["token_endpoint"] == "http://testserver/o/token/"
+        assert data["revocation_endpoint"] == "http://testserver/o/revoke_token/"
+        assert data["introspection_endpoint"] == "http://testserver/o/introspect/"
+        assert data["jwks_uri"] == "http://testserver/o/.well-known/jwks.json"
+
     @override_settings(ROOT_URLCONF="tests.urls_metadata_only")
     def test_get_oauth_server_metadata_omits_unregistered_endpoints(self):
         """Endpoints whose URL name is not registered are omitted, not 500s."""
