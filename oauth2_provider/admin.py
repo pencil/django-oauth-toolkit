@@ -17,6 +17,14 @@ from oauth2_provider.models import (
 
 has_email = hasattr(get_user_model(), "email")
 
+# Non-secret user identifiers used to keep the credential changelists searchable by user.
+# Always include the user model's USERNAME_FIELD (so custom user models without an ``email``
+# attribute still support "search by user"), plus ``email`` when it exists and differs from it.
+_username_field = get_user_model().USERNAME_FIELD
+USER_SEARCH_FIELDS = ("user__%s" % _username_field,)
+if has_email and _username_field != "email":
+    USER_SEARCH_FIELDS += ("user__email",)
+
 
 # Only reveal a short suffix of a credential, and only when the value is long enough
 # that the suffix is a small fraction of it. Shorter values are fully masked so a masked
@@ -35,9 +43,10 @@ def mask_credential(value):
     replayable credentials to any staff user with view access — and, for
     ``search_fields``, would leak them into the ``?q=`` query string captured by
     server access logs and browser history. Values shorter than
-    ``MASK_MIN_LENGTH`` are fully masked; longer values reveal only their last
-    ``MASK_SUFFIX_LENGTH`` characters, which is enough to correlate a row without
-    meaningfully aiding a brute force of a high-entropy token.
+    ``MASK_MIN_LENGTH`` characters are fully masked; values of at least that
+    length reveal only their last ``MASK_SUFFIX_LENGTH`` characters, which is
+    enough to correlate a row without meaningfully aiding a brute force of a
+    high-entropy token.
     """
     if not value:
         return value
@@ -62,7 +71,7 @@ class AccessTokenAdmin(admin.ModelAdmin):
     list_select_related = ("application", "user")
     raw_id_fields = ("user", "source_refresh_token")
     # Search by non-secret identifiers only; never by the token itself.
-    search_fields = ("application__client_id", "application__name") + (("user__email",) if has_email else ())
+    search_fields = ("application__client_id", "application__name") + USER_SEARCH_FIELDS
     list_filter = ("application",)
 
     def get_exclude(self, request, obj=None):
@@ -82,7 +91,7 @@ class GrantAdmin(admin.ModelAdmin):
     list_display = ("pk", "masked_code", "application", "user", "expires")
     raw_id_fields = ("user",)
     # Search by non-secret identifiers only; never by the authorization code itself.
-    search_fields = ("application__client_id", "application__name") + (("user__email",) if has_email else ())
+    search_fields = ("application__client_id", "application__name") + USER_SEARCH_FIELDS
 
     def get_exclude(self, request, obj=None):
         # Hide the raw code on the change/view form (obj is set); keep it editable on the add form.
@@ -109,7 +118,7 @@ class RefreshTokenAdmin(admin.ModelAdmin):
     list_select_related = ("application", "user")
     raw_id_fields = ("user", "access_token")
     # Search by non-secret identifiers only; never by the token itself.
-    search_fields = ("application__client_id", "application__name") + (("user__email",) if has_email else ())
+    search_fields = ("application__client_id", "application__name") + USER_SEARCH_FIELDS
     list_filter = ("application",)
 
     def get_exclude(self, request, obj=None):
