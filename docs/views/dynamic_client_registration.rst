@@ -44,6 +44,10 @@ Creates a new OAuth2 application (RFC 7591).  Authentication is controlled by
      "registration_client_uri": "https://example.com/o/register/abc123/"
    }
 
+Applications created through this endpoint are flagged with ``dcr_created=True`` on the
+``Application`` model, so dynamically registered clients can be distinguished from manually
+provisioned ones — the Django admin's application list can be filtered on this field.
+
 GET/PUT/DELETE /o/register/{client_id}/
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

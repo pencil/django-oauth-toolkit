@@ -72,7 +72,19 @@ class TestDynamicClientRegistration(TestCase):
         assert "registration_access_token" in body
         assert "registration_client_uri" in body
         assert body["grant_types"] == ["authorization_code", "refresh_token"]
-        assert Application.objects.filter(client_id=body["client_id"]).exists()
+        app = Application.objects.get(client_id=body["client_id"])
+        assert app.dcr_created is True
+
+    def test_manually_created_application_is_not_dcr_created(self):
+        """Applications created outside DCR default to dcr_created=False."""
+        app = Application.objects.create(
+            name="Manual App",
+            user=self.user,
+            client_type=Application.CLIENT_CONFIDENTIAL,
+            authorization_grant_type=Application.GRANT_AUTHORIZATION_CODE,
+            redirect_uris="https://example.com/cb",
+        )
+        assert app.dcr_created is False
 
     def test_register_with_client_name(self):
         """client_name is mapped to Application.name."""

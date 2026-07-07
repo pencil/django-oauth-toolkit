@@ -270,7 +270,7 @@ class DynamicClientRegistrationView(View):
 
         Application = get_application_model()
         user = request.user if request.user.is_authenticated else None
-        application = Application(user=user, **app_kwargs)
+        application = Application(user=user, dcr_created=True, **app_kwargs)
 
         # Capture the raw secret before save() hashes it
         raw_secret = application.client_secret if application.client_type == "confidential" else None
