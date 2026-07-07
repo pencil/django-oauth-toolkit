@@ -231,6 +231,49 @@ class TestDynamicClientRegistration(TestCase):
         assert response.status_code == 400
         assert response.json()["error"] == "invalid_client_metadata"
 
+    def test_register_non_object_json_is_400(self):
+        """A JSON body that is not an object → 400."""
+        self.client.force_login(self.user)
+        response = self.client.post(_register_url(), data="[1, 2]", content_type="application/json")
+        assert response.status_code == 400
+        assert response.json()["error"] == "invalid_client_metadata"
+
+    def test_register_unsupported_grant_type_is_400(self):
+        """An unknown grant_type value → 400."""
+        self.client.force_login(self.user)
+        data = {"redirect_uris": ["https://example.com/cb"], "grant_types": ["magic_link"]}
+        response = _post_register(self.client, data)
+        assert response.status_code == 400
+        assert response.json()["error"] == "invalid_client_metadata"
+
+    def test_register_redirect_uris_not_array_is_400(self):
+        """redirect_uris as a string instead of an array → 400."""
+        self.client.force_login(self.user)
+        data = {"redirect_uris": "https://example.com/cb", "grant_types": ["authorization_code"]}
+        response = _post_register(self.client, data)
+        assert response.status_code == 400
+        assert response.json()["error"] == "invalid_client_metadata"
+
+    def test_register_non_string_redirect_uri_is_400(self):
+        """A non-string redirect_uris element → 400."""
+        self.client.force_login(self.user)
+        data = {"redirect_uris": [123], "grant_types": ["authorization_code"]}
+        response = _post_register(self.client, data)
+        assert response.status_code == 400
+        assert response.json()["error"] == "invalid_client_metadata"
+
+    def test_register_unsupported_auth_method_is_400(self):
+        """An unsupported token_endpoint_auth_method → 400."""
+        self.client.force_login(self.user)
+        data = {
+            "redirect_uris": ["https://example.com/cb"],
+            "grant_types": ["authorization_code"],
+            "token_endpoint_auth_method": "private_key_jwt",
+        }
+        response = _post_register(self.client, data)
+        assert response.status_code == 400
+        assert response.json()["error"] == "invalid_client_metadata"
+
     def test_validation_error_description_without_message_dict(self):
         """Non-field ValidationErrors serialize via their messages list."""
         from django.core.exceptions import ValidationError
@@ -310,6 +353,15 @@ class TestDCRCsrfSessionAuthenticated(TestCase):
         )
         assert response.status_code == 401
         assert response.json()["error"] == "access_denied"
+
+    def test_bearer_authorization_header_bypasses_csrf(self):
+        """A Bearer Authorization header exempts a session-authenticated request from CSRF."""
+        response = _post_register(
+            self.csrf_client,
+            self.data,
+            HTTP_AUTHORIZATION="Bearer some-initial-access-token",
+        )
+        assert response.status_code == 201
 
 
 @pytest.mark.usefixtures("oauth2_settings")
@@ -395,6 +447,23 @@ class TestDynamicClientRegistrationManagement(TestCase):
         )
         assert response.status_code == 401
 
+    def test_get_unknown_token_is_401(self):
+        """GET with a Bearer token that matches no AccessToken → 401."""
+        response = self.client.get(self.management_url, **_bearer("no-such-token"))
+        assert response.status_code == 401
+
+    def test_get_expired_token_is_401(self):
+        """GET with an expired registration token → 401."""
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        token = AccessToken.objects.get(token=self.registration_token)
+        token.expires = timezone.now() - timedelta(seconds=1)
+        token.save()
+        response = self.client.get(self.management_url, **_bearer(self.registration_token))
+        assert response.status_code == 401
+
     def test_get_token_wrong_client_is_403(self):
         """GET with token for a different client → 403."""
         # Create a second application with its own token
@@ -466,6 +535,41 @@ class TestDynamicClientRegistrationManagement(TestCase):
         assert response.status_code == 200
         body = response.json()
         assert body["registration_access_token"] == self.registration_token
+
+    def test_put_without_token_is_401(self):
+        """PUT without a registration token → 401."""
+        response = self.client.put(
+            self.management_url,
+            data=json.dumps({"redirect_uris": ["https://example.com/cb"]}),
+            content_type="application/json",
+        )
+        assert response.status_code == 401
+
+    def test_put_invalid_json_is_400(self):
+        """PUT with a non-JSON body → 400."""
+        response = self.client.put(
+            self.management_url,
+            data="not-json",
+            content_type="application/json",
+            **_bearer(self.registration_token),
+        )
+        assert response.status_code == 400
+        assert response.json()["error"] == "invalid_client_metadata"
+
+    def test_put_multiple_grant_types_is_400(self):
+        """PUT with multiple non-refresh_token grant types → 400."""
+        update_data = {
+            "redirect_uris": ["https://example.com/cb"],
+            "grant_types": ["authorization_code", "implicit"],
+        }
+        response = self.client.put(
+            self.management_url,
+            data=json.dumps(update_data),
+            content_type="application/json",
+            **_bearer(self.registration_token),
+        )
+        assert response.status_code == 400
+        assert response.json()["error"] == "invalid_client_metadata"
 
     def test_put_invalid_metadata_is_400(self):
         """PUT with an invalid redirect_uri → 400 with validation message."""
