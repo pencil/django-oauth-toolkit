@@ -9,10 +9,14 @@ requiring OIDC to be enabled.
 URL Configuration
 -----------------
 
-RFC 8414 requires the metadata endpoint to be at
-``{issuer}/.well-known/oauth-authorization-server``. Since the issuer is typically the
-server's root URL (e.g., ``https://example.com``), the metadata endpoint **must be
-mounted at the root**, not under a prefix like ``/o/``.
+RFC 8414 locates the metadata document at the *origin's*
+``/.well-known/oauth-authorization-server`` (an RFC 8615 well-known URI). When the
+issuer is the server's root URL (e.g. ``https://example.com``) the document is at
+``https://example.com/.well-known/oauth-authorization-server``. When the issuer has a
+path component (e.g. ``https://example.com/tenant1``) that path is appended *after*
+the well-known suffix, i.e. ``https://example.com/.well-known/oauth-authorization-server/tenant1``.
+Both forms are registered by ``metadata_urlpatterns``, so the well-known routes should
+be mounted at the server **root**, not under a prefix like ``/o/``.
 
 The metadata view is provided in a separate ``metadata_urlpatterns`` list for this
 reason. If you mount the rest of the toolkit at a prefix, mount the metadata view at
@@ -91,14 +95,27 @@ Example response::
 configured (see :ref:`OIDC_RSA_PRIVATE_KEY <oidc-rsa-private-key>`). When OIDC
 is disabled, ``jwks_uri`` is omitted since the JWKS endpoint is not reachable.
 
-The issuer URL is derived from the incoming request by default: it is the request
-URL with the ``/.well-known/oauth-authorization-server`` suffix stripped, so any
-mount prefix is preserved. To set it explicitly, configure ``OIDC_ISS_ENDPOINT``
-in your ``OAUTH2_PROVIDER`` settings (see :doc:`settings`).
+The issuer URL is derived from the incoming request by default, by splitting the
+request URL around the ``/.well-known/oauth-authorization-server`` marker:
 
-The ``revocation_endpoint_auth_methods_supported`` and
+* whatever precedes the marker becomes the issuer base, so a mount prefix is
+  preserved (``https://example.com/o/.well-known/oauth-authorization-server`` yields
+  the issuer ``https://example.com/o``);
+* any RFC 8414 path component that follows the marker is appended back to the base
+  (``https://example.com/.well-known/oauth-authorization-server/tenant1`` yields the
+  issuer ``https://example.com/tenant1``).
+
+To set the issuer explicitly instead, configure ``OIDC_ISS_ENDPOINT`` in your
+``OAUTH2_PROVIDER`` settings (see :doc:`settings`); its value is then returned
+verbatim.
+
+The endpoint URLs (``authorization_endpoint``, ``token_endpoint`` …) are resolved
+from wherever the toolkit routes are mounted and are independent of the issuer path.
+
+The ``code_challenge_methods_supported``, ``token_endpoint_auth_methods_supported``,
+``revocation_endpoint_auth_methods_supported`` and
 ``introspection_endpoint_auth_methods_supported`` fields are only included when the
-respective endpoints are registered, and reuse the
+endpoint they describe is registered; the three auth-methods fields reuse the
 ``token_endpoint_auth_methods_supported`` value.
 
 The response fields ``response_types_supported``, ``grant_types_supported``, and

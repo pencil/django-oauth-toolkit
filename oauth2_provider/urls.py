@@ -7,12 +7,22 @@ app_name = "oauth2_provider"
 
 
 metadata_urlpatterns = [
-    # RFC 8414 requires this endpoint at {issuer}/.well-known/oauth-authorization-server.
-    # Mount this at the server root, not under a prefix — see docs/oauth2_server_metadata.rst.
+    # RFC 8414 locates the metadata document at the origin's
+    # /.well-known/oauth-authorization-server. Mount this at the server root, not
+    # under a prefix — see docs/oauth2_server_metadata.rst.
     path(
         ".well-known/oauth-authorization-server",
         views.OAuthServerMetadataView.as_view(),
         name="oauth-server-metadata",
+    ),
+    # RFC 8414 path-component form: when the issuer has a path (e.g.
+    # https://host/tenant1), the document lives at
+    # /.well-known/oauth-authorization-server/<issuer_path>. The captured suffix
+    # is reflected back into the issuer; the view reads it from the request path.
+    path(
+        ".well-known/oauth-authorization-server/<path:issuer_path>",
+        views.OAuthServerMetadataView.as_view(),
+        name="oauth-server-metadata-issuer",
     ),
 ]
 

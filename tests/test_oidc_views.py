@@ -1269,6 +1269,22 @@ class TestOAuthServerMetadataView(TestCase):
         assert data["introspection_endpoint"] == "http://testserver/o/introspect/"
         assert data["jwks_uri"] == "http://testserver/o/.well-known/jwks.json"
 
+    @override_settings(ROOT_URLCONF="tests.urls_split_metadata")
+    def test_get_oauth_server_metadata_rfc8414_path_component_issuer(self):
+        """RFC 8414 path-component form: /.well-known/.../<issuer_path>.
+
+        The issuer path after the well-known marker is preserved in the derived
+        issuer, per RFC 8414 for issuers with a path component.
+        """
+        self.oauth2_settings.OIDC_ISS_ENDPOINT = None
+        response = self.client.get("/.well-known/oauth-authorization-server/tenant1")
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        assert data["issuer"] == "http://testserver/tenant1"
+        # Endpoint URLs still come from where the toolkit is mounted (/o/).
+        assert data["authorization_endpoint"] == "http://testserver/o/authorize/"
+        assert data["token_endpoint"] == "http://testserver/o/token/"
+
     @override_settings(ROOT_URLCONF="tests.urls_metadata_only")
     def test_get_oauth_server_metadata_omits_unregistered_endpoints(self):
         """Endpoints whose URL name is not registered are omitted, not 500s."""

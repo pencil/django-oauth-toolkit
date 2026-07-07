@@ -338,17 +338,31 @@ class OAuth2ProviderSettings:
         Get the OAuth2 authorization server metadata issuer URL.
 
         If ``OIDC_ISS_ENDPOINT`` is configured it is returned verbatim.
-        Otherwise the issuer is derived from the incoming request. RFC 8414
-        locates the metadata document at an RFC 8615 ``.well-known`` URI, so the
-        issuer is the metadata request URL with the ``/.well-known/...`` suffix
-        removed. Deriving it from the request path (rather than reversing a URL
-        name) preserves any mount prefix (e.g. ``/o``) and keeps working when the
-        view is mounted outside the ``oauth2_provider`` namespace.
+        Otherwise the issuer is derived from the incoming request by locating the
+        ``/.well-known/oauth-authorization-server`` marker in the request URL and
+        splitting around it:
+
+        * text *before* the marker is the base — this preserves any mount prefix
+          (e.g. ``https://host/o/.well-known/oauth-authorization-server`` →
+          ``https://host/o``);
+        * text *after* the marker is the RFC 8414 issuer path component, appended
+          back to the base (e.g.
+          ``https://host/.well-known/oauth-authorization-server/tenant1`` →
+          ``https://host/tenant1``).
+
+        Deriving it from the request path (rather than reversing a URL name)
+        keeps working when the view is mounted outside the ``oauth2_provider``
+        namespace, and supports both the root/prefixed mounts and RFC 8414's
+        path-component (nested ``.well-known``) form.
         """
         if self.OIDC_ISS_ENDPOINT:
             return self.OIDC_ISS_ENDPOINT
         abs_url = request.build_absolute_uri(request.path)
-        return abs_url.split("/.well-known/")[0]
+        base, _, issuer_path = abs_url.partition("/.well-known/oauth-authorization-server")
+        issuer_path = issuer_path.strip("/")
+        if issuer_path:
+            return f"{base}/{issuer_path}"
+        return base
 
     def oidc_issuer(self, request):
         """
