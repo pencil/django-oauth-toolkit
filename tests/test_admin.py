@@ -22,11 +22,14 @@ from oauth2_provider.models import (
 )
 
 
-def _admin_form_fields(admin_class, model):
-    """Return the fields the admin change/view form would render."""
+def _admin_form_fields(admin_class, model, obj):
+    """
+    Return the fields the admin form would render. Pass ``obj=None`` for the add
+    form and an instance for the change/view form (the two can differ).
+    """
     request = RequestFactory().get("/")
     model_admin = admin_class(model, AdminSite())
-    return list(model_admin.get_form(request).base_fields)
+    return list(model_admin.get_form(request, obj=obj).base_fields)
 
 
 def test_mask_credential_hides_the_secret():
@@ -47,15 +50,27 @@ def test_mask_credential_hides_the_secret():
         assert secret not in mask_credential(secret)
 
 
+def _assert_hidden_on_change_form(admin_class, model, field, masked_field):
+    site = AdminSite()
+    model_admin = admin_class(model, site)
+    request = RequestFactory().get("/")
+    obj = model()  # a (dummy) instance -> change-form context, not the add form
+    # The raw secret field is not rendered on the change/view form; a masked value is shown.
+    assert field not in _admin_form_fields(admin_class, model, obj=obj)
+    assert masked_field in model_admin.get_readonly_fields(request, obj=obj)
+    # masked_* must be safe to render even for an unsaved / None object.
+    assert getattr(model_admin, masked_field)(None) == ""
+    # The add form still lets the field be set, so tokens/codes can be created there.
+    assert field in _admin_form_fields(admin_class, model, obj=None)
+
+
 def test_access_token_admin_does_not_expose_token():
     assert "token" not in AccessTokenAdmin.list_display
     assert "token" not in AccessTokenAdmin.search_fields
     # Search stays available by non-secret application identifiers.
     assert "application__client_id" in AccessTokenAdmin.search_fields
     assert "application__name" in AccessTokenAdmin.search_fields
-    # The raw token is not rendered on the change/view form (a masked value is shown).
-    assert "token" not in _admin_form_fields(AccessTokenAdmin, get_access_token_model())
-    assert "masked_token" in AccessTokenAdmin.readonly_fields
+    _assert_hidden_on_change_form(AccessTokenAdmin, get_access_token_model(), "token", "masked_token")
 
 
 def test_refresh_token_admin_does_not_expose_token():
@@ -63,8 +78,7 @@ def test_refresh_token_admin_does_not_expose_token():
     assert "token" not in RefreshTokenAdmin.search_fields
     assert "application__client_id" in RefreshTokenAdmin.search_fields
     assert "application__name" in RefreshTokenAdmin.search_fields
-    assert "token" not in _admin_form_fields(RefreshTokenAdmin, get_refresh_token_model())
-    assert "masked_token" in RefreshTokenAdmin.readonly_fields
+    _assert_hidden_on_change_form(RefreshTokenAdmin, get_refresh_token_model(), "token", "masked_token")
 
 
 def test_grant_admin_does_not_expose_code():
@@ -72,5 +86,4 @@ def test_grant_admin_does_not_expose_code():
     assert "code" not in GrantAdmin.search_fields
     assert "application__client_id" in GrantAdmin.search_fields
     assert "application__name" in GrantAdmin.search_fields
-    assert "code" not in _admin_form_fields(GrantAdmin, get_grant_model())
-    assert "masked_code" in GrantAdmin.readonly_fields
+    _assert_hidden_on_change_form(GrantAdmin, get_grant_model(), "code", "masked_code")

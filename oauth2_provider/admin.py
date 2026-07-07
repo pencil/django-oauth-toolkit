@@ -64,13 +64,18 @@ class AccessTokenAdmin(admin.ModelAdmin):
     # Search by non-secret identifiers only; never by the token itself.
     search_fields = ("application__client_id", "application__name") + (("user__email",) if has_email else ())
     list_filter = ("application",)
-    # Keep the raw token off the change/view form; show a masked, read-only value instead.
-    exclude = ("token",)
-    readonly_fields = ("masked_token",)
+
+    def get_exclude(self, request, obj=None):
+        # Hide the raw token on the change/view form (obj is set); keep it editable on
+        # the add form so tokens can still be created there if needed.
+        return ("token",) if obj is not None else super().get_exclude(request, obj)
+
+    def get_readonly_fields(self, request, obj=None):
+        return ("masked_token",) if obj is not None else ()
 
     @admin.display(description="token")
     def masked_token(self, obj):
-        return mask_credential(obj.token)
+        return mask_credential(obj.token) if obj is not None else ""
 
 
 class GrantAdmin(admin.ModelAdmin):
@@ -78,13 +83,17 @@ class GrantAdmin(admin.ModelAdmin):
     raw_id_fields = ("user",)
     # Search by non-secret identifiers only; never by the authorization code itself.
     search_fields = ("application__client_id", "application__name") + (("user__email",) if has_email else ())
-    # Keep the raw code off the change/view form; show a masked, read-only value instead.
-    exclude = ("code",)
-    readonly_fields = ("masked_code",)
+
+    def get_exclude(self, request, obj=None):
+        # Hide the raw code on the change/view form (obj is set); keep it editable on the add form.
+        return ("code",) if obj is not None else super().get_exclude(request, obj)
+
+    def get_readonly_fields(self, request, obj=None):
+        return ("masked_code",) if obj is not None else ()
 
     @admin.display(description="code")
     def masked_code(self, obj):
-        return mask_credential(obj.code)
+        return mask_credential(obj.code) if obj is not None else ""
 
 
 class IDTokenAdmin(admin.ModelAdmin):
@@ -102,13 +111,17 @@ class RefreshTokenAdmin(admin.ModelAdmin):
     # Search by non-secret identifiers only; never by the token itself.
     search_fields = ("application__client_id", "application__name") + (("user__email",) if has_email else ())
     list_filter = ("application",)
-    # Keep the raw token off the change/view form; show a masked, read-only value instead.
-    exclude = ("token",)
-    readonly_fields = ("masked_token",)
+
+    def get_exclude(self, request, obj=None):
+        # Hide the raw token on the change/view form (obj is set); keep it editable on the add form.
+        return ("token",) if obj is not None else super().get_exclude(request, obj)
+
+    def get_readonly_fields(self, request, obj=None):
+        return ("masked_token",) if obj is not None else ()
 
     @admin.display(description="token")
     def masked_token(self, obj):
-        return mask_credential(obj.token)
+        return mask_credential(obj.token) if obj is not None else ""
 
 
 application_model = get_application_model()
