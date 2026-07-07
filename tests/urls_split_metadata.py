@@ -1,21 +1,16 @@
 from django.urls import include, path
 
-from oauth2_provider.urls import (
-    base_urlpatterns,
-    management_urlpatterns,
-    metadata_urlpatterns,
-    oidc_urlpatterns,
-)
+from oauth2_provider import urls as oauth2_urls
+from oauth2_provider.urls import metadata_urlpatterns
 
 
-# The documented RFC 8414 deployment: the metadata endpoint at the server root
-# and the rest of the toolkit under an "/o/" prefix.
+# The documented deployment for an issuer under a path (https://host/o): the
+# strict RFC 8414 well-known routes at the domain root, plus the full toolkit
+# (including OIDC discovery and the pragmatic fallback metadata routes) under
+# the "/o/" prefix. The root include gets a distinct instance namespace so
+# reverse("oauth2_provider:...") for the endpoints resolves unambiguously to
+# the "/o/" mount.
 urlpatterns = [
-    # Distinct instance namespace so reverse("oauth2_provider:...") for the
-    # endpoints below resolves unambiguously to the "/o/" mount.
     path("", include((metadata_urlpatterns, "oauth2_provider"), namespace="oauth2_metadata")),
-    path(
-        "o/",
-        include((base_urlpatterns + management_urlpatterns + oidc_urlpatterns, "oauth2_provider")),
-    ),
+    path("o/", include(oauth2_urls)),
 ]

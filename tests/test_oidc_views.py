@@ -1285,6 +1285,25 @@ class TestOAuthServerMetadataView(TestCase):
         assert data["authorization_endpoint"] == "http://testserver/o/authorize/"
         assert data["token_endpoint"] == "http://testserver/o/token/"
 
+    @override_settings(ROOT_URLCONF="tests.urls_split_metadata")
+    def test_get_oauth_server_metadata_all_discovery_urls_for_prefixed_issuer(self):
+        """An issuer under a path (http://host/o) is discoverable at all three URLs.
+
+        1. OIDC discovery (issuer + /.well-known/openid-configuration),
+        2. strict RFC 8414 (well-known at the root, issuer path appended), and
+        3. the pragmatic fallback (issuer + /.well-known/oauth-authorization-server)
+        must all resolve and agree on the issuer.
+        """
+        self.oauth2_settings.OIDC_ISS_ENDPOINT = None
+        for url in [
+            "/o/.well-known/openid-configuration",
+            "/.well-known/oauth-authorization-server/o",
+            "/o/.well-known/oauth-authorization-server",
+        ]:
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 200)
+            assert response.json()["issuer"] == "http://testserver/o", url
+
     @override_settings(ROOT_URLCONF="tests.urls_metadata_only")
     def test_get_oauth_server_metadata_omits_unregistered_endpoints(self):
         """Endpoints whose URL name is not registered are omitted, not 500s."""

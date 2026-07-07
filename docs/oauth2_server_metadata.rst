@@ -13,55 +13,54 @@ RFC 8414 locates the metadata document at the *origin's*
 ``/.well-known/oauth-authorization-server`` (an RFC 8615 well-known URI). When the
 issuer is the server's root URL (e.g. ``https://example.com``) the document is at
 ``https://example.com/.well-known/oauth-authorization-server``. When the issuer has a
-path component (e.g. ``https://example.com/tenant1``) that path is appended *after*
-the well-known suffix, i.e. ``https://example.com/.well-known/oauth-authorization-server/tenant1``.
-Both forms are registered by ``metadata_urlpatterns``, so the well-known routes should
-be mounted at the server **root**, not under a prefix like ``/o/``.
+path component (e.g. ``https://example.com/o``) the strict RFC 8414 location appends
+that path *after* the well-known suffix:
+``https://example.com/.well-known/oauth-authorization-server/o``. In practice, some
+OAuth 2.0 clients instead fall back to OIDC-style appending — issuer +
+``/.well-known/oauth-authorization-server`` — when they cannot reach the domain root.
 
-The metadata view is provided in a separate ``metadata_urlpatterns`` list for this
-reason. If you mount the rest of the toolkit at a prefix, mount the metadata view at
-the root separately:
+For maximum client compatibility, a deployment whose issuer lives under a path
+(e.g. ``https://example.com/o``) should therefore expose discovery at all three URLs:
+
+1. ``/o/.well-known/openid-configuration`` — OpenID Connect Discovery 1.0 (served by
+   ``oidc_urlpatterns``; requires OIDC to be enabled).
+2. ``/.well-known/oauth-authorization-server/o`` — the strict RFC 8414 form: the
+   well-known URI at the domain root with the issuer's path appended.
+3. ``/o/.well-known/oauth-authorization-server`` — the pragmatic fallback: the
+   well-known suffix appended to the issuer URL.
+
+The default ``urlpatterns`` in ``oauth2_provider.urls`` include
+``metadata_urlpatterns``, so a prefixed include provides (1) and (3) automatically.
+Add a root-mounted include of ``metadata_urlpatterns`` to also serve (2):
 
 .. code-block:: python
 
     from django.urls import include, path
 
-    from oauth2_provider.urls import (
-        base_urlpatterns,
-        management_urlpatterns,
-        metadata_urlpatterns,
-        oidc_urlpatterns,
-    )
+    from oauth2_provider.urls import metadata_urlpatterns
 
     urlpatterns = [
-        # Metadata at root (RFC 8414 requirement). Give this include a distinct
-        # instance namespace so the prefixed mount below stays the unambiguous
-        # "oauth2_provider" namespace that endpoint reversing relies on.
+        # Strict RFC 8414 well-known URIs at the domain root. The distinct
+        # instance namespace keeps reverse("oauth2_provider:...") for the
+        # endpoints unambiguously pointing at the prefixed mount below.
         path(
             "",
             include((metadata_urlpatterns, "oauth2_provider"), namespace="oauth2_metadata"),
         ),
-        # The rest of the toolkit under your chosen prefix
-        path(
-            "o/",
-            include(
-                (base_urlpatterns + management_urlpatterns + oidc_urlpatterns, "oauth2_provider")
-            ),
-        ),
+        # The toolkit — including OIDC discovery and the fallback metadata
+        # routes — under your chosen prefix.
+        path("o/", include("oauth2_provider.urls")),
     ]
 
+All three documents report the same issuer: the fallback form derives it from the URL
+segment *before* ``/.well-known/`` while the strict form uses the path component
+*after* it, so every URL above yields ``https://example.com/o``. If you cannot serve
+URLs at the domain root, strict RFC 8414 clients cannot discover a path-based issuer —
+forms (1) and (3) remain available to everything else.
+
 If you use ``include("oauth2_provider.urls")`` without a prefix, everything works
-out of the box — ``metadata_urlpatterns`` is included in the default ``urlpatterns``.
-
-.. warning::
-
-    Because ``metadata_urlpatterns`` is part of the default ``urlpatterns``, mounting
-    the toolkit under a prefix with ``path("o/", include("oauth2_provider.urls"))``
-    also publishes the well-known document at
-    ``/o/.well-known/oauth-authorization-server`` — which is **not** where an RFC 8414
-    client looks for a root issuer. For a prefixed deployment, mount
-    ``metadata_urlpatterns`` separately at the server root (as shown above) so the
-    well-known routes stay at ``/.well-known/...``.
+out of the box — ``metadata_urlpatterns`` is included in the default ``urlpatterns``
+and the issuer is the server root.
 
 Example response::
 
