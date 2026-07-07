@@ -269,6 +269,16 @@ class TestDCRCsrfSessionAuthenticated(TestCase):
         assert response.status_code == 201
         assert "client_id" in response.json()
 
+    def test_non_bearer_authorization_header_does_not_bypass_csrf(self):
+        """A Basic Authorization header must not exempt a session-authenticated request from CSRF."""
+        response = _post_register(
+            self.csrf_client,
+            self.data,
+            HTTP_AUTHORIZATION="Basic dXNlcjpwYXNz",
+        )
+        assert response.status_code == 401
+        assert response.json()["error"] == "access_denied"
+
 
 @pytest.mark.usefixtures("oauth2_settings")
 @pytest.mark.oauth2_settings(
@@ -328,6 +338,14 @@ class TestDynamicClientRegistrationManagement(TestCase):
         """GET without token → 401."""
         response = self.client.get(self.management_url)
         assert response.status_code == 401
+
+    def test_get_tolerates_extra_whitespace_in_authorization_header(self):
+        """Bearer parsing follows the middleware pattern: any whitespace run between scheme and token."""
+        response = self.client.get(
+            self.management_url,
+            HTTP_AUTHORIZATION=f"Bearer   {self.registration_token}",
+        )
+        assert response.status_code == 200
 
     def test_get_token_wrong_client_is_403(self):
         """GET with token for a different client → 403."""
@@ -468,6 +486,24 @@ class TestDCRTokenExpiry(TestCase):
         body = response.json()
         token = AccessToken.objects.get(token=body["registration_access_token"])
         assert token.expires.year == 9999
+
+
+@pytest.mark.usefixtures("oauth2_settings")
+@pytest.mark.oauth2_settings(
+    {
+        **presets.DCR_SETTINGS,
+        "DCR_REGISTRATION_PERMISSION_CLASSES": (),
+    }
+)
+class TestDCREmptyPermissionClasses(TestCase):
+    def test_empty_permission_classes_fails_closed(self):
+        """An empty DCR_REGISTRATION_PERMISSION_CLASSES denies registration instead of opening it."""
+        user = UserModel.objects.create_user("noperm_user", "noperm@example.com", "pass")
+        self.client.force_login(user)
+        data = {"redirect_uris": ["https://example.com/cb"], "grant_types": ["authorization_code"]}
+        response = _post_register(self.client, data)
+        assert response.status_code == 401
+        assert response.json()["error"] == "access_denied"
 
 
 @pytest.mark.usefixtures("oauth2_settings")

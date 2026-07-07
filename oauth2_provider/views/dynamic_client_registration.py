@@ -42,13 +42,35 @@ def _error_response(error, description, status=400):
 
 
 def _check_permissions(request):
-    """Run all DCR_REGISTRATION_PERMISSION_CLASSES; return True if all pass."""
+    """
+    Run all DCR_REGISTRATION_PERMISSION_CLASSES; return True if all pass.
+
+    Fails closed: an empty DCR_REGISTRATION_PERMISSION_CLASSES denies all
+    registration. Open registration must be requested explicitly by
+    configuring AllowAllDCRPermission.
+    """
     permission_classes = oauth2_settings.DCR_REGISTRATION_PERMISSION_CLASSES
+    if not permission_classes:
+        return False
     for cls in permission_classes:
         instance = cls()
         if not instance.has_permission(request):
             return False
     return True
+
+
+def _validation_error_description(exc):
+    """
+    Build an RFC 7591 error_description from a Django ValidationError.
+
+    Uses only the validation messages, never the exception's repr, so no
+    internal details can leak into the API response.
+    """
+    if hasattr(exc, "message_dict"):
+        return "; ".join(
+            "{}: {}".format(field, " ".join(messages)) for field, messages in exc.message_dict.items()
+        )
+    return "; ".join(exc.messages)
 
 
 def _parse_metadata(body):
@@ -256,7 +278,7 @@ class DynamicClientRegistrationView(View):
         try:
             application.full_clean()
         except ValidationError as exc:
-            return _error_response("invalid_client_metadata", str(exc))
+            return _error_response("invalid_client_metadata", _validation_error_description(exc))
 
         with transaction.atomic():
             application.save()
@@ -290,14 +312,15 @@ class DynamicClientRegistrationManagementView(View):
         Returns (application, registration_token) or (None, error_response).
         """
         auth_header = request.META.get("HTTP_AUTHORIZATION", "")
-        if not auth_header.startswith("Bearer "):
+        splits = auth_header.split(maxsplit=1)
+        if not auth_header.startswith("Bearer") or len(splits) != 2:
             return None, _error_response(
                 "invalid_token",
                 "Registration access token required",
                 status=401,
             )
 
-        raw_token = auth_header[len("Bearer ") :]
+        raw_token = splits[1].strip()
         token_checksum = hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
         AccessToken = get_access_token_model()
         try:
@@ -351,7 +374,7 @@ class DynamicClientRegistrationManagementView(View):
         try:
             application.full_clean()
         except ValidationError as exc:
-            return _error_response("invalid_client_metadata", str(exc))
+            return _error_response("invalid_client_metadata", _validation_error_description(exc))
 
         with transaction.atomic():
             application.save()

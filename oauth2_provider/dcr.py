@@ -36,16 +36,20 @@ class IsAuthenticatedDCRPermission:
 
     Requests authenticated via the session cookie must also pass Django's
     CSRF validation, since the view itself is ``csrf_exempt``. Requests
-    carrying an ``Authorization`` header are not CSRF-exposed (browsers never
-    attach that header cross-site) and are checked for authentication only.
+    carrying a ``Bearer`` ``Authorization`` header are not CSRF-exposed
+    (browsers never attach that header cross-site) and are checked for
+    authentication only. Other schemes such as ``Basic`` do not bypass CSRF,
+    because browsers can replay cached Basic credentials on cross-site
+    requests just like cookies.
     """
 
     def has_permission(self, request) -> bool:
         if not (request.user and request.user.is_authenticated):
             return False
-        if not request.META.get("HTTP_AUTHORIZATION"):
-            return enforce_csrf(request)
-        return True
+        auth_parts = request.META.get("HTTP_AUTHORIZATION", "").split(maxsplit=1)
+        if auth_parts and auth_parts[0].lower() == "bearer":
+            return True
+        return enforce_csrf(request)
 
 
 class AllowAllDCRPermission:
