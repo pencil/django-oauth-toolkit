@@ -18,6 +18,25 @@ from oauth2_provider.models import (
 has_email = hasattr(get_user_model(), "email")
 
 
+def mask_credential(value):
+    """
+    Return a masked representation of a token/code that identifies a row in the
+    admin without exposing the usable credential.
+
+    Access/refresh tokens and authorization codes are stored in cleartext, so
+    showing them verbatim (or making them searchable) would expose live,
+    replayable credentials to any staff user with view access — and, for
+    ``search_fields``, would leak them into the ``?q=`` query string captured by
+    server access logs and browser history. Only the last few characters are
+    shown, which is enough to correlate a row without aiding a brute force.
+    """
+    if not value:
+        return value
+    if len(value) <= 6:
+        return "…"
+    return "…%s" % value[-6:]
+
+
 class ApplicationAdmin(admin.ModelAdmin):
     list_display = ("pk", "name", "user", "client_type", "authorization_grant_type")
     list_filter = ("client_type", "authorization_grant_type", "skip_authorization")
@@ -30,17 +49,25 @@ class ApplicationAdmin(admin.ModelAdmin):
 
 
 class AccessTokenAdmin(admin.ModelAdmin):
-    list_display = ("token", "user", "application", "expires")
+    list_display = ("pk", "masked_token", "user", "application", "expires")
     list_select_related = ("application", "user")
     raw_id_fields = ("user", "source_refresh_token")
-    search_fields = ("token",) + (("user__email",) if has_email else ())
+    search_fields = ("user__email",) if has_email else ()
     list_filter = ("application",)
+
+    @admin.display(description="token")
+    def masked_token(self, obj):
+        return mask_credential(obj.token)
 
 
 class GrantAdmin(admin.ModelAdmin):
-    list_display = ("code", "application", "user", "expires")
+    list_display = ("pk", "masked_code", "application", "user", "expires")
     raw_id_fields = ("user",)
-    search_fields = ("code",) + (("user__email",) if has_email else ())
+    search_fields = ("user__email",) if has_email else ()
+
+    @admin.display(description="code")
+    def masked_code(self, obj):
+        return mask_credential(obj.code)
 
 
 class IDTokenAdmin(admin.ModelAdmin):
@@ -52,11 +79,15 @@ class IDTokenAdmin(admin.ModelAdmin):
 
 
 class RefreshTokenAdmin(admin.ModelAdmin):
-    list_display = ("token", "user", "application")
+    list_display = ("pk", "masked_token", "user", "application")
     list_select_related = ("application", "user")
     raw_id_fields = ("user", "access_token")
-    search_fields = ("token",) + (("user__email",) if has_email else ())
+    search_fields = ("user__email",) if has_email else ()
     list_filter = ("application",)
+
+    @admin.display(description="token")
+    def masked_token(self, obj):
+        return mask_credential(obj.token)
 
 
 application_model = get_application_model()

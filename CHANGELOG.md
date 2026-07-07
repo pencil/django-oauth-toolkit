@@ -20,6 +20,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * #1546 Support for RP-Initiated Registration
 
 ### Security
+* Stop exposing cleartext access tokens, refresh tokens, and authorization codes in the Django
+  admin. The default `AccessTokenAdmin`, `RefreshTokenAdmin`, and `GrantAdmin` classes listed the
+  raw `token`/`code` in `list_display` and included them in `search_fields`. Because these values
+  are stored in cleartext, any staff user with view access saw replayable credentials, and
+  searching placed them in the `?q=` query string (captured by access logs and browser history).
+  The columns are now masked (last characters only) and are no longer searchable.
 * Fix an unauthenticated open redirect from the authorization endpoint. A `prompt=none` request from
   an unauthenticated user was redirected to the supplied `redirect_uri` with a `login_required` error
   *before* the client and `redirect_uri` were validated, allowing an attacker to redirect a victim's
