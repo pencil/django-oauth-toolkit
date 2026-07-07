@@ -313,7 +313,8 @@ class DynamicClientRegistrationManagementView(View):
         """
         auth_header = request.META.get("HTTP_AUTHORIZATION", "")
         splits = auth_header.split(maxsplit=1)
-        if not auth_header.startswith("Bearer") or len(splits) != 2:
+        # RFC 7235: auth scheme names are case-insensitive and must match exactly
+        if len(splits) != 2 or splits[0].lower() != "bearer":
             return None, _error_response(
                 "invalid_token",
                 "Registration access token required",

@@ -74,6 +74,14 @@ Field Mapping
 | ``token_endpoint_auth_method: ...`` | ``client_type = "confidential"``  | Default                          |
 +-------------------------------------+-----------------------------------+----------------------------------+
 
+.. note::
+    ``client_secret_basic`` and ``client_secret_post`` are both accepted at registration, since
+    DOT's token endpoint authenticates confidential clients through either HTTP Basic auth or
+    request-body credentials. The Application model does not record which method was requested, so
+    per :rfc:`7591#section-2` (the server "MAY replace any of the client's requested metadata
+    values ... with suitable values") responses normalize the registered value to
+    ``client_secret_basic``; clients may nevertheless use either method at the token endpoint.
+
 
 Configuration
 -------------
@@ -136,6 +144,7 @@ Open registration (no auth required):
 .. code-block:: python
 
     OAUTH2_PROVIDER = {
+        "DCR_ENABLED": True,
         "DCR_REGISTRATION_PERMISSION_CLASSES": ("oauth2_provider.dcr.AllowAllDCRPermission",),
     }
 
@@ -151,6 +160,7 @@ Custom permission class (e.g. initial-access token):
 
     # settings.py
     OAUTH2_PROVIDER = {
+        "DCR_ENABLED": True,
         "DCR_REGISTRATION_PERMISSION_CLASSES": ("myapp.permissions.InitialAccessTokenPermission",),
     }
 

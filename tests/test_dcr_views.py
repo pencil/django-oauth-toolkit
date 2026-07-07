@@ -372,12 +372,28 @@ class TestDynamicClientRegistrationManagement(TestCase):
         assert response.status_code == 401
 
     def test_get_tolerates_extra_whitespace_in_authorization_header(self):
-        """Bearer parsing follows the middleware pattern: any whitespace run between scheme and token."""
+        """Bearer parsing tolerates any whitespace run between scheme and token."""
         response = self.client.get(
             self.management_url,
             HTTP_AUTHORIZATION=f"Bearer   {self.registration_token}",
         )
         assert response.status_code == 200
+
+    def test_get_accepts_case_insensitive_bearer_scheme(self):
+        """RFC 7235: auth scheme names are case-insensitive."""
+        response = self.client.get(
+            self.management_url,
+            HTTP_AUTHORIZATION=f"bearer {self.registration_token}",
+        )
+        assert response.status_code == 200
+
+    def test_get_rejects_non_bearer_scheme(self):
+        """A scheme that merely starts with 'Bearer' (e.g. 'BearerX') → 401."""
+        response = self.client.get(
+            self.management_url,
+            HTTP_AUTHORIZATION=f"BearerX {self.registration_token}",
+        )
+        assert response.status_code == 401
 
     def test_get_token_wrong_client_is_403(self):
         """GET with token for a different client → 403."""
