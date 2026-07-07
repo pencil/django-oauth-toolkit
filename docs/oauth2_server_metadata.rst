@@ -53,6 +53,16 @@ the root separately:
 If you use ``include("oauth2_provider.urls")`` without a prefix, everything works
 out of the box — ``metadata_urlpatterns`` is included in the default ``urlpatterns``.
 
+.. warning::
+
+    Because ``metadata_urlpatterns`` is part of the default ``urlpatterns``, mounting
+    the toolkit under a prefix with ``path("o/", include("oauth2_provider.urls"))``
+    also publishes the well-known document at
+    ``/o/.well-known/oauth-authorization-server`` — which is **not** where an RFC 8414
+    client looks for a root issuer. For a prefixed deployment, mount
+    ``metadata_urlpatterns`` separately at the server root (as shown above) so the
+    well-known routes stay at ``/.well-known/...``.
+
 Example response::
 
     HTTP/1.1 200 OK

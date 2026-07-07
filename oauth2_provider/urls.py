@@ -78,4 +78,11 @@ oidc_urlpatterns = [
 ]
 
 
+# The default urlpatterns include metadata_urlpatterns so that a root include
+# (path("", include("oauth2_provider.urls"))) publishes the RFC 8414 well-known
+# endpoint out of the box. NOTE: if you instead mount these under a prefix
+# (e.g. path("o/", include("oauth2_provider.urls"))) the well-known endpoint
+# ends up at /o/.well-known/oauth-authorization-server, which is not where an
+# RFC 8414 client looks. In that case mount metadata_urlpatterns separately at
+# the server root — see docs/oauth2_server_metadata.rst.
 urlpatterns = metadata_urlpatterns + base_urlpatterns + management_urlpatterns + oidc_urlpatterns
