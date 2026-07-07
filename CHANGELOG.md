@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * #1546 Support for RP-Initiated Registration
 
 ### Security
-* Stop writing client secrets to the logs. On a failed client authentication the `OAuth2Validator`
+* Stop writing client secrets to the logs. On a failed client authentication, the `OAuth2Validator`
   logged the submitted `client_secret` (and, for Basic auth, the base64 `client_id:client_secret`
   credential string) at `DEBUG` level. These messages now identify only the `client_id`, so
   password-equivalent client secrets no longer leak into log files or aggregators.
