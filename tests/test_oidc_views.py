@@ -5,7 +5,7 @@ from django.conf import settings
 from django.contrib.auth import get_user, get_user_model
 from django.contrib.auth.models import AnonymousUser
 from django.core.exceptions import ImproperlyConfigured
-from django.test import RequestFactory
+from django.test import RequestFactory, override_settings
 from django.urls import reverse
 from django.utils import timezone
 from pytest_django.asserts import assertRedirects
@@ -1244,3 +1244,24 @@ class TestOAuthServerMetadataView(TestCase):
         assert "authorization_endpoint" in data
         assert "token_endpoint" in data
         assert "jwks_uri" not in data
+
+    @override_settings(ROOT_URLCONF="tests.urls_metadata_only")
+    def test_get_oauth_server_metadata_omits_unregistered_endpoints(self):
+        """Endpoints whose URL name is not registered are omitted, not 500s."""
+        response = self.client.get(reverse("oauth2_provider:oauth-server-metadata"))
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        # None of the endpoint routes exist in this URLconf, so they are dropped.
+        for key in [
+            "authorization_endpoint",
+            "token_endpoint",
+            "revocation_endpoint",
+            "introspection_endpoint",
+            "revocation_endpoint_auth_methods_supported",
+            "introspection_endpoint_auth_methods_supported",
+            "jwks_uri",
+        ]:
+            assert key not in data
+        # Static metadata is still present.
+        assert "issuer" in data
+        assert data["scopes_supported"] == ["openid", "read", "write"]
