@@ -27,13 +27,20 @@ def test_mask_credential_hides_the_secret():
 def test_access_token_admin_does_not_expose_token():
     assert "token" not in AccessTokenAdmin.list_display
     assert "token" not in AccessTokenAdmin.search_fields
+    # Search stays available by non-secret application identifiers.
+    assert "application__client_id" in AccessTokenAdmin.search_fields
+    assert "application__name" in AccessTokenAdmin.search_fields
 
 
 def test_refresh_token_admin_does_not_expose_token():
     assert "token" not in RefreshTokenAdmin.list_display
     assert "token" not in RefreshTokenAdmin.search_fields
+    assert "application__client_id" in RefreshTokenAdmin.search_fields
+    assert "application__name" in RefreshTokenAdmin.search_fields
 
 
 def test_grant_admin_does_not_expose_code():
     assert "code" not in GrantAdmin.list_display
     assert "code" not in GrantAdmin.search_fields
+    assert "application__client_id" in GrantAdmin.search_fields
+    assert "application__name" in GrantAdmin.search_fields
