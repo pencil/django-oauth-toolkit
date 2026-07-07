@@ -64,6 +64,27 @@ def _assert_hidden_on_change_form(admin_class, model, field, masked_field):
     assert field in _admin_form_fields(admin_class, model, obj=None)
 
 
+def test_admin_overrides_preserve_subclass_config():
+    """get_exclude/get_readonly_fields extend, rather than replace, a subclass's config."""
+
+    class CustomAccessTokenAdmin(AccessTokenAdmin):
+        exclude = ("expires",)
+        readonly_fields = ("created",)
+
+    model = get_access_token_model()
+    model_admin = CustomAccessTokenAdmin(model, AdminSite())
+    request = RequestFactory().get("/")
+    obj = model()
+
+    exclude = model_admin.get_exclude(request, obj=obj)
+    assert "expires" in exclude  # subclass configuration is preserved ...
+    assert "token" in exclude  # ... and our secret-hiding is still applied
+
+    readonly = model_admin.get_readonly_fields(request, obj=obj)
+    assert "created" in readonly
+    assert "masked_token" in readonly
+
+
 def _assert_searchable_by_app_and_user(admin_class):
     # Search stays available by non-secret application identifiers ...
     assert "application__client_id" in admin_class.search_fields

@@ -75,12 +75,19 @@ class AccessTokenAdmin(admin.ModelAdmin):
     list_filter = ("application",)
 
     def get_exclude(self, request, obj=None):
-        # Hide the raw token on the change/view form (obj is set); keep it editable on
-        # the add form so tokens can still be created there if needed.
-        return ("token",) if obj is not None else super().get_exclude(request, obj)
+        # Hide the raw token on the change/view form (obj is set); keep it editable on the add
+        # form so tokens can still be created there. Extend, rather than replace, any exclude
+        # configured on a subclass.
+        exclude = tuple(super().get_exclude(request, obj) or ())
+        if obj is not None and "token" not in exclude:
+            exclude += ("token",)
+        return exclude
 
     def get_readonly_fields(self, request, obj=None):
-        return ("masked_token",) if obj is not None else ()
+        readonly_fields = tuple(super().get_readonly_fields(request, obj))
+        if obj is not None and "masked_token" not in readonly_fields:
+            readonly_fields += ("masked_token",)
+        return readonly_fields
 
     @admin.display(description="token")
     def masked_token(self, obj):
@@ -94,11 +101,18 @@ class GrantAdmin(admin.ModelAdmin):
     search_fields = ("application__client_id", "application__name") + USER_SEARCH_FIELDS
 
     def get_exclude(self, request, obj=None):
-        # Hide the raw code on the change/view form (obj is set); keep it editable on the add form.
-        return ("code",) if obj is not None else super().get_exclude(request, obj)
+        # Hide the raw code on the change/view form; keep it editable on the add form. Extend,
+        # rather than replace, any exclude configured on a subclass.
+        exclude = tuple(super().get_exclude(request, obj) or ())
+        if obj is not None and "code" not in exclude:
+            exclude += ("code",)
+        return exclude
 
     def get_readonly_fields(self, request, obj=None):
-        return ("masked_code",) if obj is not None else ()
+        readonly_fields = tuple(super().get_readonly_fields(request, obj))
+        if obj is not None and "masked_code" not in readonly_fields:
+            readonly_fields += ("masked_code",)
+        return readonly_fields
 
     @admin.display(description="code")
     def masked_code(self, obj):
@@ -122,11 +136,18 @@ class RefreshTokenAdmin(admin.ModelAdmin):
     list_filter = ("application",)
 
     def get_exclude(self, request, obj=None):
-        # Hide the raw token on the change/view form (obj is set); keep it editable on the add form.
-        return ("token",) if obj is not None else super().get_exclude(request, obj)
+        # Hide the raw token on the change/view form; keep it editable on the add form. Extend,
+        # rather than replace, any exclude configured on a subclass.
+        exclude = tuple(super().get_exclude(request, obj) or ())
+        if obj is not None and "token" not in exclude:
+            exclude += ("token",)
+        return exclude
 
     def get_readonly_fields(self, request, obj=None):
-        return ("masked_token",) if obj is not None else ()
+        readonly_fields = tuple(super().get_readonly_fields(request, obj))
+        if obj is not None and "masked_token" not in readonly_fields:
+            readonly_fields += ("masked_token",)
+        return readonly_fields
 
     @admin.display(description="token")
     def masked_token(self, obj):
