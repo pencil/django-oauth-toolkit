@@ -64,6 +64,9 @@ class AccessTokenAdmin(admin.ModelAdmin):
     # Search by non-secret identifiers only; never by the token itself.
     search_fields = ("application__client_id", "application__name") + (("user__email",) if has_email else ())
     list_filter = ("application",)
+    # Keep the raw token off the change/view form; show a masked, read-only value instead.
+    exclude = ("token",)
+    readonly_fields = ("masked_token",)
 
     @admin.display(description="token")
     def masked_token(self, obj):
@@ -75,6 +78,9 @@ class GrantAdmin(admin.ModelAdmin):
     raw_id_fields = ("user",)
     # Search by non-secret identifiers only; never by the authorization code itself.
     search_fields = ("application__client_id", "application__name") + (("user__email",) if has_email else ())
+    # Keep the raw code off the change/view form; show a masked, read-only value instead.
+    exclude = ("code",)
+    readonly_fields = ("masked_code",)
 
     @admin.display(description="code")
     def masked_code(self, obj):
@@ -96,6 +102,9 @@ class RefreshTokenAdmin(admin.ModelAdmin):
     # Search by non-secret identifiers only; never by the token itself.
     search_fields = ("application__client_id", "application__name") + (("user__email",) if has_email else ())
     list_filter = ("application",)
+    # Keep the raw token off the change/view form; show a masked, read-only value instead.
+    exclude = ("token",)
+    readonly_fields = ("masked_token",)
 
     @admin.display(description="token")
     def masked_token(self, obj):

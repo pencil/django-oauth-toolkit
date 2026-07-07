@@ -1,9 +1,13 @@
 """
 Tests for the default admin classes, ensuring that cleartext bearer tokens and
-authorization codes are never exposed verbatim (in ``list_display``) nor made
-searchable (in ``search_fields``, which would leak them into the ``?q=`` query
-string and therefore into access logs / browser history).
+authorization codes are never exposed verbatim (in ``list_display``, in the
+change/view form, or via ``__str__``) nor made searchable (in ``search_fields``,
+which would leak them into the ``?q=`` query string and therefore into access
+logs / browser history).
 """
+
+from django.contrib.admin.sites import AdminSite
+from django.test import RequestFactory
 
 from oauth2_provider.admin import (
     AccessTokenAdmin,
@@ -11,6 +15,18 @@ from oauth2_provider.admin import (
     RefreshTokenAdmin,
     mask_credential,
 )
+from oauth2_provider.models import (
+    get_access_token_model,
+    get_grant_model,
+    get_refresh_token_model,
+)
+
+
+def _admin_form_fields(admin_class, model):
+    """Return the fields the admin change/view form would render."""
+    request = RequestFactory().get("/")
+    model_admin = admin_class(model, AdminSite())
+    return list(model_admin.get_form(request).base_fields)
 
 
 def test_mask_credential_hides_the_secret():
@@ -37,6 +53,9 @@ def test_access_token_admin_does_not_expose_token():
     # Search stays available by non-secret application identifiers.
     assert "application__client_id" in AccessTokenAdmin.search_fields
     assert "application__name" in AccessTokenAdmin.search_fields
+    # The raw token is not rendered on the change/view form (a masked value is shown).
+    assert "token" not in _admin_form_fields(AccessTokenAdmin, get_access_token_model())
+    assert "masked_token" in AccessTokenAdmin.readonly_fields
 
 
 def test_refresh_token_admin_does_not_expose_token():
@@ -44,6 +63,8 @@ def test_refresh_token_admin_does_not_expose_token():
     assert "token" not in RefreshTokenAdmin.search_fields
     assert "application__client_id" in RefreshTokenAdmin.search_fields
     assert "application__name" in RefreshTokenAdmin.search_fields
+    assert "token" not in _admin_form_fields(RefreshTokenAdmin, get_refresh_token_model())
+    assert "masked_token" in RefreshTokenAdmin.readonly_fields
 
 
 def test_grant_admin_does_not_expose_code():
@@ -51,3 +72,5 @@ def test_grant_admin_does_not_expose_code():
     assert "code" not in GrantAdmin.search_fields
     assert "application__client_id" in GrantAdmin.search_fields
     assert "application__name" in GrantAdmin.search_fields
+    assert "code" not in _admin_form_fields(GrantAdmin, get_grant_model())
+    assert "masked_code" in GrantAdmin.readonly_fields
