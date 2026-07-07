@@ -167,7 +167,7 @@ class TestConnectDiscoveryInfoView(TestCase):
 
     @override_settings(ROOT_URLCONF="tests.urls_oidc_discovery_only")
     def test_get_connect_discovery_info_fails_fast_on_unregistered_endpoint(self):
-        """Required OIDC endpoints must fail fast, not emit null, if unreversable."""
+        """Required OIDC endpoints must fail fast, not emit null, when unreversible."""
         with self.assertRaises(NoReverseMatch):
             self.client.get("/.well-known/openid-configuration")
 
@@ -1275,12 +1275,15 @@ class TestOAuthServerMetadataView(TestCase):
         response = self.client.get(reverse("oauth2_provider:oauth-server-metadata"))
         self.assertEqual(response.status_code, 200)
         data = response.json()
-        # None of the endpoint routes exist in this URLconf, so they are dropped.
+        # None of the endpoint routes exist in this URLconf, so they are dropped
+        # along with the capability fields that describe them.
         for key in [
             "authorization_endpoint",
             "token_endpoint",
             "revocation_endpoint",
             "introspection_endpoint",
+            "code_challenge_methods_supported",
+            "token_endpoint_auth_methods_supported",
             "revocation_endpoint_auth_methods_supported",
             "introspection_endpoint_auth_methods_supported",
             "jwks_uri",

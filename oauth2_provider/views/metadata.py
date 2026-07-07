@@ -59,8 +59,6 @@ class OAuthServerMetadataView(ServerMetadataViewMixin, View):
             "response_types_supported": oauth2_settings.OAUTH2_RESPONSE_TYPES_SUPPORTED,
             "grant_types_supported": oauth2_settings.OAUTH2_GRANT_TYPES_SUPPORTED,
             "scopes_supported": sorted(scopes.get_available_scopes()),
-            "token_endpoint_auth_methods_supported": auth_methods,
-            "code_challenge_methods_supported": [key for key, _ in AbstractGrant.CODE_CHALLENGE_METHODS],
         }
 
         # Endpoint URLs are resolved via reverse() and omitted if not registered
@@ -74,6 +72,14 @@ class OAuthServerMetadataView(ServerMetadataViewMixin, View):
             if url:
                 data[key] = url
 
+        # Capability fields describe a specific endpoint, so only advertise them
+        # when that endpoint is actually present.
+        if "authorization_endpoint" in data:
+            data["code_challenge_methods_supported"] = [
+                key for key, _ in AbstractGrant.CODE_CHALLENGE_METHODS
+            ]
+        if "token_endpoint" in data:
+            data["token_endpoint_auth_methods_supported"] = auth_methods
         if "revocation_endpoint" in data:
             data["revocation_endpoint_auth_methods_supported"] = auth_methods
         if "introspection_endpoint" in data:
