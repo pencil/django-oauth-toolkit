@@ -50,7 +50,7 @@ class ConnectDiscoveryInfoView(ServerMetadataViewMixin, OIDCOnlyMixin, View):
     def get(self, request, *args, **kwargs):
         issuer_url = oauth2_settings.oidc_issuer(request)
         userinfo_endpoint = oauth2_settings.OIDC_USERINFO_ENDPOINT or self._get_endpoint_url(
-            request, "user-info"
+            request, "user-info", required=True
         )
 
         signing_algorithms = [Application.HS256_ALGORITHM]
@@ -66,10 +66,10 @@ class ConnectDiscoveryInfoView(ServerMetadataViewMixin, OIDCOnlyMixin, View):
 
         data = {
             "issuer": issuer_url,
-            "authorization_endpoint": self._get_endpoint_url(request, "authorize"),
-            "token_endpoint": self._get_endpoint_url(request, "token"),
+            "authorization_endpoint": self._get_endpoint_url(request, "authorize", required=True),
+            "token_endpoint": self._get_endpoint_url(request, "token", required=True),
             "userinfo_endpoint": userinfo_endpoint,
-            "jwks_uri": self._get_endpoint_url(request, "jwks-info"),
+            "jwks_uri": self._get_endpoint_url(request, "jwks-info", required=True),
             "scopes_supported": scopes_supported,
             "response_types_supported": oauth2_settings.OIDC_RESPONSE_TYPES_SUPPORTED,
             "subject_types_supported": oauth2_settings.OIDC_SUBJECT_TYPES_SUPPORTED,
@@ -85,7 +85,9 @@ class ConnectDiscoveryInfoView(ServerMetadataViewMixin, OIDCOnlyMixin, View):
             data["prompt_values_supported"].append("create")
 
         if oauth2_settings.OIDC_RP_INITIATED_LOGOUT_ENABLED:
-            data["end_session_endpoint"] = self._get_endpoint_url(request, "rp-initiated-logout")
+            data["end_session_endpoint"] = self._get_endpoint_url(
+                request, "rp-initiated-logout", required=True
+            )
         response = JsonResponse(data)
         response["Access-Control-Allow-Origin"] = "*"
         return response

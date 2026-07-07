@@ -20,6 +20,8 @@ the root separately:
 
 .. code-block:: python
 
+    from django.urls import include, path
+
     from oauth2_provider.urls import (
         base_urlpatterns,
         management_urlpatterns,

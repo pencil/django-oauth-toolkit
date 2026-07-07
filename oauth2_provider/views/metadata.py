@@ -16,11 +16,19 @@ class ServerMetadataViewMixin:
     Handles both request-relative and OIDC_ISS_ENDPOINT-anchored URLs.
     """
 
-    def _get_endpoint_url(self, request, view_name):
-        """Build an absolute endpoint URL, or None if the URL name is not registered."""
+    def _get_endpoint_url(self, request, view_name, required=False):
+        """Build an absolute endpoint URL.
+
+        Returns ``None`` when the URL name is not registered, so optional
+        endpoints can simply be omitted. Pass ``required=True`` to fail fast
+        (let ``NoReverseMatch`` propagate) for endpoints that must be present,
+        rather than emitting a ``null`` value that hides misconfiguration.
+        """
         try:
             path = reverse(f"oauth2_provider:{view_name}")
         except NoReverseMatch:
+            if required:
+                raise
             return None
         issuer = oauth2_settings.OIDC_ISS_ENDPOINT
         if not issuer:

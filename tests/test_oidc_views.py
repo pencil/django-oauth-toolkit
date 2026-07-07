@@ -6,7 +6,7 @@ from django.contrib.auth import get_user, get_user_model
 from django.contrib.auth.models import AnonymousUser
 from django.core.exceptions import ImproperlyConfigured
 from django.test import RequestFactory, override_settings
-from django.urls import reverse
+from django.urls import NoReverseMatch, reverse
 from django.utils import timezone
 from pytest_django.asserts import assertRedirects
 
@@ -164,6 +164,12 @@ class TestConnectDiscoveryInfoView(TestCase):
         response = self.client.get(reverse("oauth2_provider:oidc-connect-discovery-info"))
         self.assertEqual(response.status_code, 200)
         assert response.json()["id_token_signing_alg_values_supported"] == ["HS256"]
+
+    @override_settings(ROOT_URLCONF="tests.urls_oidc_discovery_only")
+    def test_get_connect_discovery_info_fails_fast_on_unregistered_endpoint(self):
+        """Required OIDC endpoints must fail fast, not emit null, if unreversable."""
+        with self.assertRaises(NoReverseMatch):
+            self.client.get("/.well-known/openid-configuration")
 
 
 @pytest.mark.usefixtures("oauth2_settings")
