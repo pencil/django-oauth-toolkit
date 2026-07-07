@@ -18,6 +18,13 @@ from oauth2_provider.models import (
 has_email = hasattr(get_user_model(), "email")
 
 
+# Only reveal a short suffix of a credential, and only when the value is long enough
+# that the suffix is a small fraction of it. Shorter values are fully masked so a masked
+# value never exposes most of a (potentially low-entropy) secret.
+MASK_MIN_LENGTH = 16
+MASK_SUFFIX_LENGTH = 4
+
+
 def mask_credential(value):
     """
     Return a masked representation of a token/code that identifies a row in the
@@ -27,14 +34,16 @@ def mask_credential(value):
     showing them verbatim (or making them searchable) would expose live,
     replayable credentials to any staff user with view access — and, for
     ``search_fields``, would leak them into the ``?q=`` query string captured by
-    server access logs and browser history. Only the last few characters are
-    shown, which is enough to correlate a row without aiding a brute force.
+    server access logs and browser history. Values shorter than
+    ``MASK_MIN_LENGTH`` are fully masked; longer values reveal only their last
+    ``MASK_SUFFIX_LENGTH`` characters, which is enough to correlate a row without
+    meaningfully aiding a brute force of a high-entropy token.
     """
     if not value:
         return value
-    if len(value) <= 6:
+    if len(value) < MASK_MIN_LENGTH:
         return "…"
-    return "…%s" % value[-6:]
+    return "…%s" % value[-MASK_SUFFIX_LENGTH:]
 
 
 class ApplicationAdmin(admin.ModelAdmin):
