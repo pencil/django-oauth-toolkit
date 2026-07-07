@@ -138,6 +138,45 @@ class TestModels(BaseTestModels):
         app.name = "test_app"
         self.assertEqual("%s" % app, "test_app")
 
+    def test_token_and_grant_str_do_not_leak_secrets(self):
+        app = Application.objects.create(
+            name="test_app",
+            redirect_uris="http://example.org",
+            user=self.user,
+            client_type=Application.CLIENT_CONFIDENTIAL,
+            authorization_grant_type=Application.GRANT_AUTHORIZATION_CODE,
+        )
+        access_token = AccessToken.objects.create(
+            user=self.user,
+            scope="read",
+            expires=timezone.now() + timedelta(seconds=60),
+            token="secret-access-token-value",
+            application=app,
+        )
+        refresh_token = RefreshToken.objects.create(
+            user=self.user,
+            token="secret-refresh-token-value",
+            application=app,
+            access_token=access_token,
+        )
+        grant = Grant.objects.create(
+            user=self.user,
+            code="secret-grant-code-value",
+            application=app,
+            expires=timezone.now() + timedelta(seconds=60),
+            redirect_uri="http://example.org",
+            scope="read",
+        )
+
+        # __str__ is rendered in the admin change page/breadcrumbs, repr(), and logs;
+        # it must identify the row by pk without exposing the credential.
+        self.assertNotIn("secret-access-token-value", str(access_token))
+        self.assertIn(str(access_token.pk), str(access_token))
+        self.assertNotIn("secret-refresh-token-value", str(refresh_token))
+        self.assertIn(str(refresh_token.pk), str(refresh_token))
+        self.assertNotIn("secret-grant-code-value", str(grant))
+        self.assertIn(str(grant.pk), str(grant))
+
     def test_scopes_property(self):
         self.client.login(username="test_user", password="123456")
 

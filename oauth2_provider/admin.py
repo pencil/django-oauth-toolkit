@@ -53,9 +53,7 @@ class AccessTokenAdmin(admin.ModelAdmin):
     list_select_related = ("application", "user")
     raw_id_fields = ("user", "source_refresh_token")
     # Search by non-secret identifiers only; never by the token itself.
-    search_fields = ("application__client_id", "application__name") + (
-        ("user__email",) if has_email else ()
-    )
+    search_fields = ("application__client_id", "application__name") + (("user__email",) if has_email else ())
     list_filter = ("application",)
 
     @admin.display(description="token")
@@ -67,9 +65,7 @@ class GrantAdmin(admin.ModelAdmin):
     list_display = ("pk", "masked_code", "application", "user", "expires")
     raw_id_fields = ("user",)
     # Search by non-secret identifiers only; never by the authorization code itself.
-    search_fields = ("application__client_id", "application__name") + (
-        ("user__email",) if has_email else ()
-    )
+    search_fields = ("application__client_id", "application__name") + (("user__email",) if has_email else ())
 
     @admin.display(description="code")
     def masked_code(self, obj):
@@ -89,9 +85,7 @@ class RefreshTokenAdmin(admin.ModelAdmin):
     list_select_related = ("application", "user")
     raw_id_fields = ("user", "access_token")
     # Search by non-secret identifiers only; never by the token itself.
-    search_fields = ("application__client_id", "application__name") + (
-        ("user__email",) if has_email else ()
-    )
+    search_fields = ("application__client_id", "application__name") + (("user__email",) if has_email else ())
     list_filter = ("application",)
 
     @admin.display(description="token")

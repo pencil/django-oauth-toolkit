@@ -25,7 +25,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   raw `token`/`code` in `list_display` and included them in `search_fields`. Because these values
   are stored in cleartext, any staff user with view access saw replayable credentials, and
   searching placed them in the `?q=` query string (captured by access logs and browser history).
-  The columns are now masked (last characters only) and are no longer searchable.
+  The columns are now masked (last characters only) and are no longer searchable (search is
+  available by application and user instead). Relatedly, the `AccessToken`, `RefreshToken`, and
+  `Grant` model `__str__` methods no longer return the raw token/code (which the admin renders in a
+  row's change-page title and breadcrumbs, and which also appears in `repr()` and logs); they now
+  return a `"<Model> #<pk>"` identifier.
 * Fix an unauthenticated open redirect from the authorization endpoint. A `prompt=none` request from
   an unauthenticated user was redirected to the supplied `redirect_uri` with a `login_required` error
   *before* the client and `redirect_uri` were validated, allowing an attacker to redirect a victim's
