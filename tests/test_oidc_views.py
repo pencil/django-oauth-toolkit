@@ -1186,6 +1186,8 @@ class TestOAuthServerMetadataView(TestCase):
             ],
             "scopes_supported": ["openid", "read", "write"],
             "token_endpoint_auth_methods_supported": ["client_secret_post", "client_secret_basic"],
+            "revocation_endpoint_auth_methods_supported": ["client_secret_post", "client_secret_basic"],
+            "introspection_endpoint_auth_methods_supported": ["client_secret_post", "client_secret_basic"],
             "code_challenge_methods_supported": ["plain", "S256"],
             "jwks_uri": "http://localhost/o/.well-known/jwks.json",
         }
@@ -1212,6 +1214,8 @@ class TestOAuthServerMetadataView(TestCase):
             ],
             "scopes_supported": ["openid", "read", "write"],
             "token_endpoint_auth_methods_supported": ["client_secret_post", "client_secret_basic"],
+            "revocation_endpoint_auth_methods_supported": ["client_secret_post", "client_secret_basic"],
+            "introspection_endpoint_auth_methods_supported": ["client_secret_post", "client_secret_basic"],
             "code_challenge_methods_supported": ["plain", "S256"],
             "jwks_uri": "http://testserver/o/.well-known/jwks.json",
         }

@@ -4,7 +4,6 @@ from urllib.parse import urlparse
 from django.contrib.auth import logout
 from django.contrib.auth.models import AnonymousUser
 from django.http import HttpResponse, JsonResponse
-from django.urls import reverse
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import FormView, View
@@ -50,7 +49,9 @@ class ConnectDiscoveryInfoView(ServerMetadataViewMixin, OIDCOnlyMixin, View):
 
     def get(self, request, *args, **kwargs):
         issuer_url = oauth2_settings.oidc_issuer(request)
-        userinfo_endpoint = oauth2_settings.OIDC_USERINFO_ENDPOINT or self._get_endpoint_url(request, "user-info")
+        userinfo_endpoint = oauth2_settings.OIDC_USERINFO_ENDPOINT or self._get_endpoint_url(
+            request, "user-info"
+        )
 
         signing_algorithms = [Application.HS256_ALGORITHM]
         if oauth2_settings.OIDC_RSA_PRIVATE_KEY:

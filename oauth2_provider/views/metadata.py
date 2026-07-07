@@ -44,12 +44,14 @@ class OAuthServerMetadataView(ServerMetadataViewMixin, View):
         scopes_class = oauth2_settings.SCOPES_BACKEND_CLASS
         scopes = scopes_class()
 
+        auth_methods = oauth2_settings.OAUTH2_TOKEN_ENDPOINT_AUTH_METHODS_SUPPORTED
+
         data = {
             "issuer": issuer_url,
             "response_types_supported": oauth2_settings.OAUTH2_RESPONSE_TYPES_SUPPORTED,
             "grant_types_supported": oauth2_settings.OAUTH2_GRANT_TYPES_SUPPORTED,
             "scopes_supported": sorted(scopes.get_available_scopes()),
-            "token_endpoint_auth_methods_supported": oauth2_settings.OAUTH2_TOKEN_ENDPOINT_AUTH_METHODS_SUPPORTED,
+            "token_endpoint_auth_methods_supported": auth_methods,
             "code_challenge_methods_supported": [key for key, _ in AbstractGrant.CODE_CHALLENGE_METHODS],
         }
 
@@ -64,7 +66,6 @@ class OAuthServerMetadataView(ServerMetadataViewMixin, View):
             if url:
                 data[key] = url
 
-        auth_methods = oauth2_settings.OAUTH2_TOKEN_ENDPOINT_AUTH_METHODS_SUPPORTED
         if "revocation_endpoint" in data:
             data["revocation_endpoint_auth_methods_supported"] = auth_methods
         if "introspection_endpoint" in data:

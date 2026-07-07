@@ -59,6 +59,14 @@ Example response::
         "client_secret_post",
         "client_secret_basic"
       ],
+      "revocation_endpoint_auth_methods_supported": [
+        "client_secret_post",
+        "client_secret_basic"
+      ],
+      "introspection_endpoint_auth_methods_supported": [
+        "client_secret_post",
+        "client_secret_basic"
+      ],
       "code_challenge_methods_supported": ["plain", "S256"]
     }
 
@@ -66,9 +74,15 @@ Example response::
 configured (see :ref:`OIDC_RSA_PRIVATE_KEY <oidc-rsa-private-key>`). When OIDC
 is disabled, ``jwks_uri`` is omitted since the JWKS endpoint is not reachable.
 
-The issuer URL is derived from the incoming request by default. To set it
-explicitly, configure ``OIDC_ISS_ENDPOINT`` in your ``OAUTH2_PROVIDER`` settings
-(see :doc:`settings`).
+The issuer URL is derived from the incoming request by default: it is the request
+URL with the ``/.well-known/oauth-authorization-server`` suffix stripped, so any
+mount prefix is preserved. To set it explicitly, configure ``OIDC_ISS_ENDPOINT``
+in your ``OAUTH2_PROVIDER`` settings (see :doc:`settings`).
+
+The ``revocation_endpoint_auth_methods_supported`` and
+``introspection_endpoint_auth_methods_supported`` fields are only included when the
+respective endpoints are registered, and reuse the
+``token_endpoint_auth_methods_supported`` value.
 
 The response fields ``response_types_supported``, ``grant_types_supported``, and
 ``token_endpoint_auth_methods_supported`` can be customised via settings — see
