@@ -28,8 +28,13 @@ the root separately:
     )
 
     urlpatterns = [
-        # Metadata at root (RFC 8414 requirement)
-        path("", include((metadata_urlpatterns, "oauth2_provider"))),
+        # Metadata at root (RFC 8414 requirement). Give this include a distinct
+        # instance namespace so the prefixed mount below stays the unambiguous
+        # "oauth2_provider" namespace that endpoint reversing relies on.
+        path(
+            "",
+            include((metadata_urlpatterns, "oauth2_provider"), namespace="oauth2_metadata"),
+        ),
         # The rest of the toolkit under your chosen prefix
         path(
             "o/",
